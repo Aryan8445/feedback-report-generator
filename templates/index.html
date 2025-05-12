@@ -142,7 +142,7 @@
             try {
                 const data = getJSONPayload();
                 const csrfToken = getCSRFToken();
-                const response = await fetch('/assignment/html', {
+                const response = await fetch('/assignment/html/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
