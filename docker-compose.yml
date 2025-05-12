@@ -48,7 +48,7 @@ services:
   flower:
     image: feedback_report_generator
     container_name: flower
-    command: celery -A feedback_report
+    command: celery -A feedback_report flower --basic_auth=admin:password
     ports:
       - "5555:5555"
     depends_on:
