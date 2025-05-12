@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Report Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 90%;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        #response {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: #fdfdfd;
+        }
+
+        #responseText {
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        @media (max-width: 600px) {
+            button {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Feedback Report Generator</h1>
+
+        <h3>Enter JSON Payload</h3>
+        <textarea id="jsonInput" placeholder='[
+  {
+    "namespace": "ns_example",
+    "student_id": "00a9a76518624b02b0ed57263606fc26",
+    "events": [
+      {
+        "type": "saved_code",
+        "created_time": "2024-07-21T03:04:55.939Z",
+        "unit": 17
+      }
+    ]
+  }
+]'></textarea>
+
+        <h3>API Actions</h3>
+        <div style="text-align: center;">
+            <button onclick="triggerHTMLReport()">Generate HTML Report</button>
+            <button onclick="checkHTMLReportStatus()">Check HTML Report Status</button>
+            <button onclick="triggerPDFReport()">Generate PDF Report</button>
+            <button onclick="checkPDFReportStatus()">Check PDF Report Status</button>
+        </div>
+
+        <div id="response">
+            <h3>Response:</h3>
+            <div id="responseText">No response yet.</div>
+        </div>
+    </div>
+
+    <script>
+        function getCSRFToken() {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'csrftoken') return value;
+            }
+            return null;
+        }
+
+        function getJSONPayload() {
+            const input = document.getElementById('jsonInput').value;
+            try {
+                return JSON.parse(input);
+            } catch (error) {
+                document.getElementById('responseText').textContent = "Invalid JSON: " + error.message;
+                throw error;
+            }
+        }
+
+        async function triggerHTMLReport() {
+            try {
+                const data = getJSONPayload();
+                const csrfToken = getCSRFToken();
+                const response = await fetch('/assignment/html', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                document.getElementById('responseText').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('responseText').textContent = error.message;
+            }
+        }
+
+        async function checkHTMLReportStatus() {
+            const taskId = prompt("Enter Task ID for HTML Report:");
+            if (!taskId) return;
+
+            try {
+                const response = await fetch(`/assignment/html/${taskId}/`);
+                const html = await response.text();
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+
+                const studentId = doc.querySelector("h2")?.textContent.trim() || "N/A";
+                const eventOrder = doc.querySelector("p")?.textContent.trim() || "N/A";
+
+                document.getElementById('responseText').innerHTML = `<strong>${studentId}</strong><br><span style="word-break: break-word;">${eventOrder}</span>`;
+            } catch (error) {
+                document.getElementById('responseText').textContent = error.message;
+            }
+        }
+
+        async function triggerPDFReport() {
+            try {
+                const data = getJSONPayload();
+                const csrfToken = getCSRFToken();
+                const response = await fetch('/assignment/pdf/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                document.getElementById('responseText').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('responseText').textContent = error.message;
+            }
+        }
+
+        async function checkPDFReportStatus() {
+            const taskId = prompt("Enter Task ID for PDF Report:");
+            if (!taskId) return;
+
+            try {
+                const response = await fetch(`/assignment/pdf/${taskId}/`);
+                if (response.headers.get('Content-Type') === 'application/pdf') {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                } else {
+                    const result = await response.json();
+                    document.getElementById('responseText').textContent = JSON.stringify(result, null, 2);
+                }
+            } catch (error) {
+                document.getElementById('responseText').textContent = error.message;
+            }
+        }
+    </script>
+</body>
+
+</html>
