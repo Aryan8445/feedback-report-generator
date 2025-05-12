@@ -46,7 +46,7 @@ feedback-report-generator/
    ```bash
    docker-compose build
       ```
-       ```bash
+    ```bash
    docker-compose up -d
       ```
 
