@@ -45,10 +45,11 @@ feedback-report-generator/
 
    ```bash
    docker-compose build
-      ```
-    ```bash
+    ```
+ 
+   ```bash
    docker-compose up -d
-      ```
+    ```
 
 2. **Access the App:**
 
