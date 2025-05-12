@@ -1,51 +1,58 @@
-version: '3.9'
-
+name: feedback_report_generator_project
 services:
-  django:
+  app:
     build: .
-    container_name: django
-    command: python manage.py runserver 0.0.0:8000
-    volumes:
-      - .:/app
+    image: feedback_report_generator
+    container_name: feedback_report_generator
+    command: /app/entrypoint.sh
     ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=1
-      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1
-      - CELERY_BROKER_URL=redis://127.0.0.1:6379/0
-    depends_on:
-      - pgdb
-      - redis
-  celery:
-    build: .
-    container_name: celery
-    command: celery -A feedback_report worker --loglevel=info
+    - "8000:8000"
     volumes:
-      - .:/app
+    - .:/app
     depends_on:
-      - django
-      - redis
-  pgdb:
-    image: postgres:17
-    container_name: pgdb
+    - postgres
+    - redis
+  
+  postgres:
+    image: postgres
+    container_name: postgres
+    ports:
+      - "5432:5432"
     environment:
-      POSTGRES_USER: aryan
-      POSTGRES_PASSWORD: Aryan123
-      POSTGRES_DB: report_db
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    restart: unless-stopped
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+  
   redis:
     image: redis:7
     container_name: redis
-  
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  celery:
+    image: feedback_report_generator
+    container_name: celery
+    command: celery -A feedback_report worker -E -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+      - app
   flower:
-    build: ./
+    image: feedback_report_generator
     container_name: flower
-    command: celery -A feedback_report flower --port=5555 --basic_auth=admin:flower123
+    command: celery -A feedback_report
     ports:
       - "5555:5555"
     depends_on:
       - redis
-      - pgdb
 volumes:
-  pgdata:
+  postgres_data:
+  redis_data:
