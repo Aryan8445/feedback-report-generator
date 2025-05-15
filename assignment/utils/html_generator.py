@@ -1,8 +1,4 @@
-def build_html_report(data):
-    if not data or not isinstance(data, list):
-        raise ValueError("Expected a non-empty list of student data")
-
-    student = data[0]
+def build_html_report(student):
     student_id = student.get("student_id")
     events = student.get("events", [])
 
@@ -13,9 +9,7 @@ def build_html_report(data):
     unit_to_q = {unit: f"Q{i+1}" for i, unit in enumerate(unique_units)}
     event_order = [unit_to_q[event["unit"]] for event in events]
 
-    # Full HTML structure for rendering
     html = f"""<h2>Student ID: {student_id}</h2>
         <p>Event Order: {' -> '.join(event_order)}</p>
     """
-
     return html, student_id

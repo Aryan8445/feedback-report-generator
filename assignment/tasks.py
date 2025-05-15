@@ -7,16 +7,16 @@ from .utils.pdf_generator import build_pdf_from_events
 @shared_task(bind=True, name="generate_html_report")
 def generate_html_report(self, data):
     try:
-        if not data:
-            raise ValueError("No data passed to task")
+        if not isinstance(data, list):
+            raise ValueError("Expected a list of student event records")
 
-        html, student_id = build_html_report(data)
-
-        HTMLReport.objects.create(
-            task_id=self.request.id,
-            student_id=student_id,
-            html_content=html
-        )
+        for student in data:
+            html, student_id = build_html_report(student)
+            HTMLReport.objects.create(
+                task_id=self.request.id,
+                student_id=student_id,
+                html_content=html
+            )
 
         return {"status": "success"}
 
@@ -27,24 +27,24 @@ def generate_html_report(self, data):
 @shared_task(bind=True, name="generate_pdf_report")
 def generate_pdf_report(self, data):
     try:
-        if not data:
-            raise ValueError("No data passed to task")
+        if not isinstance(data, list):
+            raise ValueError("Expected a list of student data")
 
-        html, student_id = build_html_report(data)
+        for student in data:
+            html, student_id = build_html_report(student)
 
-        # Extract event sequence directly from HTML content
+            soup = BeautifulSoup(html, "html.parser")
+            event_text = soup.find("p").text.replace("Event Order: ", "")
+            event_sequence = event_text.split(" -> ")
 
-        soup = BeautifulSoup(html, "html.parser")
-        event_text = soup.find("p").text.replace("Event Order: ", "")
-        event_sequence = event_text.split(" -> ")
+            pdf_bytes = build_pdf_from_events(student_id, event_sequence)
 
-        pdf_bytes = build_pdf_from_events(student_id, event_sequence)
+            PDFReport.objects.create(
+                task_id=self.request.id,
+                student_id=student_id,
+                pdf_file=pdf_bytes
+            )
 
-        PDFReport.objects.create(
-            task_id=self.request.id,
-            student_id=student_id,
-            pdf_file=pdf_bytes
-        )
         return {"status": "success"}
 
     except Exception as e:

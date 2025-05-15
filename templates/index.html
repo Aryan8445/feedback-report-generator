@@ -118,103 +118,127 @@
         </div>
     </div>
 
-    <script>
-        function getCSRFToken() {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                const [name, value] = cookie.trim().split('=');
-                if (name === 'csrftoken') return value;
-            }
-            return null;
+    <!-- Replace your <script> block with this version -->
+<script>
+    function getCSRFToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') return value;
         }
+        return null;
+    }
 
-        function getJSONPayload() {
-            const input = document.getElementById('jsonInput').value;
-            try {
-                return JSON.parse(input);
-            } catch (error) {
-                document.getElementById('responseText').textContent = "Invalid JSON: " + error.message;
-                throw error;
-            }
+    function getJSONPayload() {
+        const input = document.getElementById('jsonInput').value;
+        try {
+            return JSON.parse(input);
+        } catch (error) {
+            document.getElementById('responseText').textContent = "Invalid JSON: " + error.message;
+            throw error;
         }
+    }
 
-        async function triggerHTMLReport() {
-            try {
-                const data = getJSONPayload();
-                const csrfToken = getCSRFToken();
-                const response = await fetch('/assignment/html/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(data)
-                });
+    async function triggerHTMLReport() {
+        try {
+            const data = getJSONPayload();
+            const csrfToken = getCSRFToken();
+            const response = await fetch('/assignment/html/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            document.getElementById('responseText').textContent = "HTML task submitted.\nTask ID: " + result.task_id;
+        } catch (error) {
+            document.getElementById('responseText').textContent = error.message;
+        }
+    }
+
+    async function checkHTMLReportStatus() {
+        const taskId = prompt("Enter Task ID for HTML Report:");
+        if (!taskId) return;
+
+        try {
+            const response = await fetch(`/assignment/html/${taskId}/`);
+            const result = await response.json();
+
+            if (result.status !== "completed") {
+                document.getElementById('responseText').textContent = `Task Status: ${result.status}`;
+                return;
+            }
+
+            const container = document.getElementById('responseText');
+            container.innerHTML = `<strong>Task Status:</strong> ${result.status}<br><br>`;
+
+            result.reports.forEach(report => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '20px';
+                div.style.padding = '10px';
+                div.style.borderBottom = '1px solid #ccc';
+                div.innerHTML = `<strong>${report.student_id}</strong><br>${report.html}`;
+                container.appendChild(div);
+            });
+
+        } catch (error) {
+            document.getElementById('responseText').textContent = error.message;
+        }
+    }
+
+    async function triggerPDFReport() {
+        try {
+            const data = getJSONPayload();
+            const csrfToken = getCSRFToken();
+            const response = await fetch('/assignment/pdf/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            document.getElementById('responseText').textContent = "PDF task submitted.\nTask ID: " + result.task_id;
+        } catch (error) {
+            document.getElementById('responseText').textContent = error.message;
+        }
+    }
+
+    async function checkPDFReportStatus() {
+        const taskId = prompt("Enter Task ID for PDF Report:");
+        if (!taskId) return;
+
+        try {
+            const response = await fetch(`/assignment/pdf/${taskId}/`);
+
+            const contentType = response.headers.get('Content-Type');
+
+            if (contentType === 'application/pdf' || contentType === 'application/zip') {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = contentType === 'application/pdf'
+                    ? `report_${taskId}.pdf`
+                    : `reports_${taskId}.zip`;
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
                 const result = await response.json();
                 document.getElementById('responseText').textContent = JSON.stringify(result, null, 2);
-            } catch (error) {
-                document.getElementById('responseText').textContent = error.message;
             }
+        } catch (error) {
+            document.getElementById('responseText').textContent = error.message;
         }
+    }
+</script>
 
-        async function checkHTMLReportStatus() {
-            const taskId = prompt("Enter Task ID for HTML Report:");
-            if (!taskId) return;
-
-            try {
-                const response = await fetch(`/assignment/html/${taskId}/`);
-                const html = await response.text();
-
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, "text/html");
-
-                const studentId = doc.querySelector("h2")?.textContent.trim() || "N/A";
-                const eventOrder = doc.querySelector("p")?.textContent.trim() || "N/A";
-
-                document.getElementById('responseText').innerHTML = `<strong>${studentId}</strong><br><span style="word-break: break-word;">${eventOrder}</span>`;
-            } catch (error) {
-                document.getElementById('responseText').textContent = error.message;
-            }
-        }
-
-        async function triggerPDFReport() {
-            try {
-                const data = getJSONPayload();
-                const csrfToken = getCSRFToken();
-                const response = await fetch('/assignment/pdf/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(data)
-                });
-                const result = await response.json();
-                document.getElementById('responseText').textContent = JSON.stringify(result, null, 2);
-            } catch (error) {
-                document.getElementById('responseText').textContent = error.message;
-            }
-        }
-
-        async function checkPDFReportStatus() {
-            const taskId = prompt("Enter Task ID for PDF Report:");
-            if (!taskId) return;
-
-            try {
-                const response = await fetch(`/assignment/pdf/${taskId}/`);
-                if (response.headers.get('Content-Type') === 'application/pdf') {
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    window.open(url, '_blank');
-                } else {
-                    const result = await response.json();
-                    document.getElementById('responseText').textContent = JSON.stringify(result, null, 2);
-                }
-            } catch (error) {
-                document.getElementById('responseText').textContent = error.message;
-            }
-        }
-    </script>
 </body>
 
 </html>
